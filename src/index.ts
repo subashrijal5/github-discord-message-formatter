@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { verifySignature } from './utils/verify-sign';
 
 const app = new Hono();
 
@@ -216,13 +217,15 @@ app.post('/github-webhook', async (c) => {
 	if (!SECRET_KEY) {
 		return c.json({ error: 'Missing SECRET_KEY environment variable' }, 500);
 	}
-	const secretKey = c.req.header('X-Hub-Signature');
-	if (secretKey !== SECRET_KEY) {
+	const secretKey = c.req.header('X-Hub-Signature-256');
+	if (!(await verifySignature(SECRET_KEY, await c.req.text(), secretKey))) {
 		return c.json({ error: 'Invalid secret key' }, 401);
 	}
 
 	try {
-		const payload = await c.req.json();
+		// Parse the body as JSON after verification
+		const rawBody = await c.req.text();
+		const payload = JSON.parse(rawBody);
 		const event = c.req.header('X-GitHub-Event');
 		const DISCORD_WEBHOOK_URL = (c.env as { DISCORD_WEBHOOK_URL?: string }).DISCORD_WEBHOOK_URL;
 		if (!DISCORD_WEBHOOK_URL) {
