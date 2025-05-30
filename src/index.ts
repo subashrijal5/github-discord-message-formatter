@@ -163,6 +163,24 @@ function formatRepositoryEvent(payload: any) {
 	};
 }
 
+// Format generic unhandled event
+function formatUnhandledEvent(event: string, payload: any) {
+	const sender = payload.sender?.login || 'Unknown';
+	const repoName = payload.repository?.name || 'Unknown';
+	const action = payload.action || 'triggered';
+
+	return {
+		title: `⚠️ Unhandled ${event} event in ${repoName}`,
+		description: `**${sender}** ${action} an unhandled **${event}** event.`,
+		color: 0xFFA500, // Orange for warning
+		url: payload.repository?.html_url || '',
+		timestamp: new Date().toISOString(),
+		footer: {
+			text: `Event: ${event}${payload.action ? ` | Action: ${payload.action}` : ''}`
+		}
+	};
+}
+
 // Format branch/tag creation event
 function formatCreateEvent(payload: any) {
 	const refType = payload.ref_type;
@@ -276,7 +294,8 @@ app.post('/github-webhook', async (c) => {
 
 			default:
 				console.log(`Unhandled event: ${event}`);
-				return c.json({ message: 'Event not supported' }, 200);
+				embed = formatUnhandledEvent(event, payload);
+				break;
 		}
 
 		if (embed) {
